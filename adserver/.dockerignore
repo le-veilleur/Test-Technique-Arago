@@ -1,0 +1,34 @@
+# Git
+.git
+.gitignore
+
+# Docker
+docker/
+Dockerfile
+.dockerignore
+
+# Binaires et fichiers de build
+bin/
+tmp/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Fichiers de test
+*_test.go
+*.test
+
+# Fichiers de configuration locaux
+.env
+.env.local
+
+# Dépendances et fichiers générés
+vendor/
+*.out
+
+# Fichiers système
+.DS_Store
+*.swp
+*.swo 

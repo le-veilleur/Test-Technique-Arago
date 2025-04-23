@@ -1,0 +1,56 @@
+name: ad_server_docker
+services:
+  adserver:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: adserver
+    volumes:
+      - ../.env:/app/.env
+    ports:
+      - "50051:50051"
+    depends_on:
+      - mongodb
+    networks:
+      - adserver-network
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - adserver-network
+    restart: unless-stopped
+
+  mongo-express:
+    image: mongo-express:latest
+    container_name: mongo-express
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=mongodb
+      - ME_CONFIG_MONGODB_PORT=27017
+      - ME_CONFIG_BASICAUTH_USERNAME=admin
+      - ME_CONFIG_BASICAUTH_PASSWORD=admin123
+    ports:
+      - "8081:8081"
+    depends_on:
+      - mongodb
+    networks:
+      - adserver-network
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:
+    name: adserver-mongodb-data
+  mongodb_config:
+    name: adserver-mongodb-config
+  adserver_logs:
+    name: adserver-logs
+
+networks:
+  adserver-network:
+    name: adserver-network
+    driver: bridge
