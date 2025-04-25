@@ -67,6 +67,17 @@ service AdService {
   // Supprimer les publicités expirées
   rpc DeleteExpired(DeleteExpiredRequest) returns (DeleteExpiredResponse) {}
 }
+
+message ServeAdRequest {
+  string ad_id = 1;
+}
+
+message ServeAdResponse {
+  string ad_id = 1;
+  string title = 2;
+  string content = 3;
+  int64 impressions = 4;
+}
 ```
 
 ### Impression Tracker Service
@@ -79,6 +90,86 @@ service ImpressionService {
   // Obtenir le nombre d'impressions pour une publicité
   rpc GetImpressionCount(GetImpressionCountRequest) returns (GetImpressionCountResponse) {}
 }
+
+message TrackImpressionRequest {
+  string ad_id = 1;
+  string impression_id = 2;
+}
+
+message TrackImpressionResponse {
+  bool success = 1;
+}
+
+message GetImpressionCountRequest {
+  string ad_id = 1;
+}
+
+message GetImpressionCountResponse {
+  int64 count = 1;
+}
+```
+
+## Tester les services
+
+### Prérequis pour tester
+
+1. Installer grpcurl :
+```bash
+go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
+```
+
+2. Installer les outils de développement gRPC :
+```bash
+go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+```
+
+### Tester l'Ad Server
+
+1. Servir une publicité :
+```bash
+grpcurl -plaintext -d '{"ad_id": "11adbe56-2c75-4d34-a361-8e442daf0e60"}' localhost:50051 ad.AdService/ServeAd
+```
+
+2. Supprimer les publicités expirées :
+```bash
+grpcurl -plaintext localhost:50051 ad.AdService/DeleteExpired
+```
+
+### Tester l'Impression Tracker
+
+1. Enregistrer une impression :
+```bash
+grpcurl -plaintext -d '{"ad_id": "11adbe56-2c75-4d34-a361-8e442daf0e60", "impression_id": "0f1c87f8-d11f-4e0e-bbb9-67f8ce4f7361"}' localhost:50052 impression.ImpressionService/TrackImpression
+```
+
+2. Obtenir le nombre d'impressions :
+```bash
+grpcurl -plaintext -d '{"ad_id": "11adbe56-2c75-4d34-a361-8e442daf0e60"}' localhost:50052 impression.ImpressionService/GetImpressionCount
+```
+
+### Liste des services disponibles
+
+Pour voir tous les services et méthodes disponibles :
+
+```bash
+# Pour l'Ad Server
+grpcurl -plaintext localhost:50051 list
+
+# Pour l'Impression Tracker
+grpcurl -plaintext localhost:50052 list
+```
+
+### Description des services
+
+Pour voir la description détaillée d'un service :
+
+```bash
+# Pour l'Ad Server
+grpcurl -plaintext localhost:50051 describe ad.AdService
+
+# Pour l'Impression Tracker
+grpcurl -plaintext localhost:50052 describe impression.ImpressionService
 ```
 
 ## Exemple d'utilisation
