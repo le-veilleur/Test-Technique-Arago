@@ -1,82 +1,170 @@
-# Microservice de Diffusion de Publicités
+# Test Technique Arago - Microservices d'Ad Server et Impression Tracker
 
-Ce projet implémente un microservice de diffusion de publicités avec suivi d'impressions utilisant gRPC, MongoDB et Redis.
+Ce projet comprend deux microservices :
+- **Ad Server** : Service de gestion et de diffusion de publicités
+- **Impression Tracker** : Service de suivi des impressions publicitaires
 
 ## Prérequis
 
-- Go 1.21 ou supérieur
-- MongoDB
-- Redis
-- protoc (protobuf compiler)
+- Docker et Docker Compose
+- Go 1.23 ou supérieur
+- Protoc (protobuf compiler)
 
-## Installation
+## Architecture
 
-1. Cloner le dépôt :
-```bash
-git clone https://github.com/yourusername/ad-service.git
-cd ad-service
+```
+.
+├── adserver/                  # Service de gestion des publicités
+│   ├── cmd/                   # Point d'entrée du service
+│   ├── internal/              # Code interne du service
+│   ├── proto/                 # Définitions gRPC
+│   └── docker/                # Configuration Docker
+├── impression-tracker/        # Service de suivi des impressions
+│   ├── cmd/                   # Point d'entrée du service
+│   ├── internal/              # Code interne du service
+│   ├── proto/                 # Définitions gRPC
+│   └── docker/                # Configuration Docker
+└── README.md                  # Documentation
 ```
 
-2. Installer les dépendances :
+## Démarrage des services
+
+1. Créer le réseau Docker pour la communication entre les services :
 ```bash
-go mod download
+docker network create microservices-network
 ```
 
-3. Générer le code gRPC :
+2. Démarrer l'Ad Server :
 ```bash
-chmod +x generate.sh
-./generate.sh
+cd adserver/docker
+docker-compose up --build
+```
+
+3. Démarrer l'Impression Tracker :
+```bash
+cd impression-tracker/docker
+docker-compose up --build
+```
+
+Les services seront accessibles aux adresses suivantes :
+- Ad Server : `localhost:50051`
+- Impression Tracker : `localhost:50052`
+- MongoDB Ad Server : `localhost:27017`
+- MongoDB Impression Tracker : `localhost:27018`
+- Mongo Express Ad Server : `localhost:8081`
+- Mongo Express Impression Tracker : `localhost:8082`
+- Dragonfly (cache) : `localhost:6379`
+
+## Définitions gRPC
+
+### Ad Server Service
+
+```protobuf
+service AdService {
+  // Servir une publicité
+  rpc ServeAd(ServeAdRequest) returns (ServeAdResponse) {}
+  
+  // Supprimer les publicités expirées
+  rpc DeleteExpired(DeleteExpiredRequest) returns (DeleteExpiredResponse) {}
+}
+```
+
+### Impression Tracker Service
+
+```protobuf
+service ImpressionService {
+  // Enregistrer une nouvelle impression
+  rpc TrackImpression(TrackImpressionRequest) returns (TrackImpressionResponse) {}
+  
+  // Obtenir le nombre d'impressions pour une publicité
+  rpc GetImpressionCount(GetImpressionCountRequest) returns (GetImpressionCountResponse) {}
+}
+```
+
+## Exemple d'utilisation
+
+### Créer une publicité
+
+```bash
+curl -X POST http://localhost:50051/v1/ads \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Publicité Test",
+    "content": "Contenu de la publicité",
+    "expires_at": "2025-12-31T23:59:59Z"
+  }'
+```
+
+### Servir une publicité
+
+```bash
+curl -X GET http://localhost:50051/v1/ads/serve/{ad_id}
+```
+
+### Obtenir le nombre d'impressions
+
+```bash
+curl -X GET http://localhost:50052/v1/impressions/count/{ad_id}
 ```
 
 ## Configuration
 
-Les services sont configurés pour se connecter à :
-- MongoDB sur localhost:27017
-- Redis sur localhost:6379
+Les services peuvent être configurés via des variables d'environnement :
 
-## Exécution
+### Ad Server
 
-1. Démarrer MongoDB et Redis
+- `GRPC_HOST` : Hôte du serveur gRPC (défaut: 0.0.0.0)
+- `GRPC_PORT` : Port du serveur gRPC (défaut: 50051)
+- `MONGODB_URI` : URI de connexion MongoDB (défaut: mongodb://mongodb:27017)
+- `MONGODB_DATABASE` : Nom de la base de données (défaut: adserver)
+- `SERVICE_NAME` : Nom du service (défaut: adserver)
+- `ENVIRONMENT` : Environnement d'exécution (défaut: development)
 
-2. Lancer le service de publicité :
+### Impression Tracker
+
+- `GRPC_ADDR` : Adresse du serveur gRPC (défaut: :50052)
+- `MONGO_URI` : URI de connexion MongoDB (défaut: mongodb://mongodb:27017)
+- `MONGO_DB` : Nom de la base de données (défaut: impression_tracker)
+- `MONGO_COLLECTION` : Nom de la collection (défaut: impressions)
+- `DRAGONFLY_ADDR` : Adresse du serveur Dragonfly (défaut: localhost:6379)
+- `SYNC_INTERVAL` : Intervalle de synchronisation (défaut: 1m)
+
+## Architecture technique
+
+- **Ad Server** :
+  - Stockage persistant : MongoDB
+  - API : gRPC
+  - Langage : Go
+
+- **Impression Tracker** :
+  - Cache : Dragonfly (compatible Redis)
+  - Stockage persistant : MongoDB
+  - API : gRPC
+  - Langage : Go
+
+## Sécurité
+
+- Les services MongoDB sont accessibles uniquement via le réseau Docker
+- Les interfaces d'administration MongoDB (Mongo Express) sont protégées par authentification
+- La communication entre les services se fait via gRPC sur le réseau privé Docker
+
+## Monitoring
+
+Les services génèrent des logs détaillés qui peuvent être consultés via :
 ```bash
-cd ad-service
-go run main.go
+docker logs adserver
+docker logs impression_tracker_app
 ```
 
-## API gRPC
+## Maintenance
 
-Le service expose les endpoints suivants :
-
-### CreateAd
-Crée une nouvelle publicité
-```protobuf
-rpc CreateAd(CreateAdRequest) returns (CreateAdResponse)
+Pour arrêter les services :
+```bash
+cd adserver/docker && docker-compose down
+cd impression-tracker/docker && docker-compose down
 ```
 
-### GetAd
-Récupère une publicité par son ID
-```protobuf
-rpc GetAd(GetAdRequest) returns (GetAdResponse)
-```
-
-### ServeAd
-Diffuse une publicité avec suivi d'impression
-```protobuf
-rpc ServeAd(ServeAdRequest) returns (ServeAdResponse)
-```
-
-## Fonctionnalités
-
-- Création de publicités avec durée de vie
-- Suivi des impressions
-- Rate limiting
-- Validation des données
-- Cache avec Redis
-
-## Points bonus implémentés
-
-- [x] Durée de vie des publicités
-- [x] Rate limiting
-- [x] Validation des données
-- [ ] Multi-langage (service de suivi) 
+Pour nettoyer les données :
+```bash
+docker volume rm adserver-mongodb-data impression_tracker-mongodb-data impression_tracker-dragonfly-data
+``` 
