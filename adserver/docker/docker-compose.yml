@@ -13,6 +13,7 @@ services:
       - mongodb
     networks:
       - adserver-network
+      - microservices-network
     restart: unless-stopped
 
   mongodb:
@@ -54,3 +55,6 @@ networks:
   adserver-network:
     name: adserver-network
     driver: bridge
+  microservices-network:
+    external: true
+    name: microservices-network

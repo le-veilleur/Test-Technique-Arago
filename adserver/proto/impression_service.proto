@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package impression;
+option go_package = "generated/impression_service";
+
+// Service de suivi des impressions
+service ImpressionService {
+  // Enregistrer une nouvelle impression
+  rpc TrackImpression(TrackImpressionRequest) returns (TrackImpressionResponse) {}
+  
+  // Obtenir le nombre d'impressions pour une publicité
+  rpc GetImpressionCount(GetImpressionCountRequest) returns (GetImpressionCountResponse) {}
+}
+
+// Requête pour enregistrer une impression
+message TrackImpressionRequest {
+  string ad_id = 1;
+  string impression_id = 2;
+}
+
+// Réponse après l'enregistrement d'une impression
+message TrackImpressionResponse {
+  bool success = 1;
+}
+
+// Requête pour obtenir le nombre d'impressions
+message GetImpressionCountRequest {
+  string ad_id = 1;
+}
+
+// Réponse avec le nombre d'impressions
+message GetImpressionCountResponse {
+  int64 count = 1;
+}

@@ -1,0 +1,64 @@
+name: impression_tracker_docker
+services:
+  impression_tracker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: impression_tracker_app
+    volumes:
+      - ../.env:/app/.env
+    ports:
+      - "50052:50052"
+    depends_on:
+      - mongodb
+      - dragonfly
+    networks:
+      - impression_tracker-network
+      - microservices-network
+    restart: unless-stopped
+  mongodb:
+    image: mongo:latest
+    container_name: impression_tracker_mongodb
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - impression_tracker-network
+    restart: unless-stopped
+  mongo-express:
+    image: mongo-express
+    container_name: impression_tracker_mongo_express
+    ports:
+      - "8082:8081"
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=mongodb
+      - ME_CONFIG_BASICAUTH_USERNAME=admin
+      - ME_CONFIG_BASICAUTH_PASSWORD=admin
+    depends_on:
+      - mongodb
+    networks:
+      - impression_tracker-network
+    restart: unless-stopped
+  dragonfly:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - dragonfly_data:/data
+    networks:
+      - impression_tracker-network
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:
+    name: impression_tracker-mongodb-data
+  dragonfly_data:
+    name: impression_tracker-dragonfly-data
+networks:
+  impression_tracker-network:
+    name: impression_tracker-network
+    driver: bridge
+  microservices-network:
+    external: true
+    name: microservices-network

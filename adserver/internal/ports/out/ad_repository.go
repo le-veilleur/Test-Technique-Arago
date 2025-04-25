@@ -36,4 +36,7 @@ type AdRepository interface {
 
 	// List permet de lister les publicités selon un filtre et pagination.
 	List(ctx context.Context, filter map[string]interface{}, offset, limit int64) ([]*domain.Pub, error)
+
+	// GetImpressions récupère le nombre d'impressions d'une publicité
+	GetImpressions(ctx context.Context, id uuid.UUID) (int64, error)
 }

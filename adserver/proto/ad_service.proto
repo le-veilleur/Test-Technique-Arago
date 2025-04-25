@@ -13,9 +13,8 @@ import "google/protobuf/timestamp.proto";
 // Requête pour créer une nouvelle publicité
 message CreateAdRequest {
     string title = 1;                         
-    string description = 2;                    
-    string url = 3;                            
-    google.protobuf.Timestamp expires_at = 4;  
+    string description = 2;                  
+    google.protobuf.Timestamp expires_at = 3; 
 }
 
 // Réponse contenant les détails d'une publicité
@@ -37,7 +36,7 @@ message ServeAdRequest {
     string id = 1;                            
 }
 
-// Réponse de diffusion : URL + compteur d'impressions mis à jour
+// Réponse de diffusion : URL avec tracking + compteur d'impressions
 message ServeAdResponse {
     string url = 1;                            
     int64 impressions = 2;                     
@@ -63,15 +62,6 @@ message IncrementImpressionsResponse {
     int64 impressions = 1;                     
 }
 
-// Requête pour réinitialiser le compteur d'impressions
-message ResetImpressionsRequest {
-    string ad_id = 1;                          
-}
-
-// Réponse pour la réinitialisation d'impressions
-message ResetImpressionsResponse {
-    int64 impressions = 1;                     
-}
 
 // Requête pour supprimer les annonces expirées
 message DeleteExpiredRequest {
@@ -83,18 +73,6 @@ message DeleteExpiredResponse {
     int64 deleted_count = 1;                   
 }
 
-// Requête pour lister les annonces
-message ListAdsRequest {
-    map<string, string> filter = 1;            
-    int64 offset = 2;                          
-    int64 limit = 3;                           
-}
-
-// Réponse pour la liste des annonces
-message ListAdsResponse {
-    repeated AdResponse ads = 1;               
-}
-
 // ---------- Services ----------
 
 // Service principal de gestion des publicités
@@ -104,7 +82,5 @@ service AdService {
     rpc ServeAd(ServeAdRequest) returns (ServeAdResponse);
     rpc GetImpressionCount(GetImpressionCountRequest) returns (GetImpressionCountResponse);
     rpc IncrementImpressions(IncrementImpressionsRequest) returns (IncrementImpressionsResponse);
-    rpc ResetImpressions(ResetImpressionsRequest) returns (ResetImpressionsResponse);
     rpc DeleteExpired(DeleteExpiredRequest) returns (DeleteExpiredResponse);
-    rpc ListAds(ListAdsRequest) returns (ListAdsResponse);
 }

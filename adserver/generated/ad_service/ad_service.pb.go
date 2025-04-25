@@ -27,10 +27,9 @@ const (
 // Requête pour créer une nouvelle publicité
 type CreateAdRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Title         string                 `protobuf:"bytes,1,opt,name=title,proto3" json:"title,omitempty"`                          // Titre de la publicité (obligatoire)
-	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`              // Description de la publicité (optionnelle)
-	Url           string                 `protobuf:"bytes,3,opt,name=url,proto3" json:"url,omitempty"`                              // URL de la publicité (obligatoire)
-	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"` // Date d'expiration (Timestamp)
+	Title         string                 `protobuf:"bytes,1,opt,name=title,proto3" json:"title,omitempty"`                          // Titre de la publicité
+	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`              // Description de la publicité
+	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"` // Date d'expiration
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -79,13 +78,6 @@ func (x *CreateAdRequest) GetDescription() string {
 	return ""
 }
 
-func (x *CreateAdRequest) GetUrl() string {
-	if x != nil {
-		return x.Url
-	}
-	return ""
-}
-
 func (x *CreateAdRequest) GetExpiresAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.ExpiresAt
@@ -96,12 +88,12 @@ func (x *CreateAdRequest) GetExpiresAt() *timestamppb.Timestamp {
 // Réponse contenant les détails d'une publicité
 type AdResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`                                // Identifiant unique de la publicité (UUID)
-	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`                          // Titre de la publicité
-	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`              // Description de la publicité
-	Url           string                 `protobuf:"bytes,4,opt,name=url,proto3" json:"url,omitempty"`                              // URL de la publicité
-	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"` // Date d'expiration
-	Impressions   int64                  `protobuf:"varint,6,opt,name=impressions,proto3" json:"impressions,omitempty"`             // Nombre total d'impressions
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Url           string                 `protobuf:"bytes,4,opt,name=url,proto3" json:"url,omitempty"`
+	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	Impressions   int64                  `protobuf:"varint,6,opt,name=impressions,proto3" json:"impressions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -181,7 +173,7 @@ func (x *AdResponse) GetImpressions() int64 {
 // Requête pour récupérer une publicité par son ID
 type GetAdRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"` // ID de la publicité à récupérer (UUID)
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -226,7 +218,7 @@ func (x *GetAdRequest) GetId() string {
 // Requête pour diffuser une publicité
 type ServeAdRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"` // ID de la publicité à diffuser (UUID)
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -268,11 +260,11 @@ func (x *ServeAdRequest) GetId() string {
 	return ""
 }
 
-// Réponse de diffusion : URL + compteur d'impressions mis à jour
+// Réponse de diffusion : URL avec tracking + compteur d'impressions
 type ServeAdResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`                  // URL de la publicité à afficher
-	Impressions   int64                  `protobuf:"varint,2,opt,name=impressions,proto3" json:"impressions,omitempty"` // Nombre d'impressions après diffusion
+	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`                  // URL de la publicité avec tracking intégré
+	Impressions   int64                  `protobuf:"varint,2,opt,name=impressions,proto3" json:"impressions,omitempty"` // Nombre d'impressions après incrément
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -324,7 +316,7 @@ func (x *ServeAdResponse) GetImpressions() int64 {
 // Requête pour obtenir le nombre d'impressions d'une publicité
 type GetImpressionCountRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	AdId          string                 `protobuf:"bytes,1,opt,name=ad_id,json=adId,proto3" json:"ad_id,omitempty"` // ID de la publicité (UUID)
+	AdId          string                 `protobuf:"bytes,1,opt,name=ad_id,json=adId,proto3" json:"ad_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -369,7 +361,7 @@ func (x *GetImpressionCountRequest) GetAdId() string {
 // Réponse pour le compteur d'impressions
 type GetImpressionCountResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Impressions   int64                  `protobuf:"varint,1,opt,name=impressions,proto3" json:"impressions,omitempty"` // Nombre total d'impressions
+	Impressions   int64                  `protobuf:"varint,1,opt,name=impressions,proto3" json:"impressions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -414,7 +406,7 @@ func (x *GetImpressionCountResponse) GetImpressions() int64 {
 // Requête pour incrémenter le compteur d'impressions
 type IncrementImpressionsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	AdId          string                 `protobuf:"bytes,1,opt,name=ad_id,json=adId,proto3" json:"ad_id,omitempty"` // ID de la publicité (UUID)
+	AdId          string                 `protobuf:"bytes,1,opt,name=ad_id,json=adId,proto3" json:"ad_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -459,7 +451,7 @@ func (x *IncrementImpressionsRequest) GetAdId() string {
 // Réponse pour l'incrémentation d'impressions
 type IncrementImpressionsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Impressions   int64                  `protobuf:"varint,1,opt,name=impressions,proto3" json:"impressions,omitempty"` // Nouveau nombre total d'impressions
+	Impressions   int64                  `protobuf:"varint,1,opt,name=impressions,proto3" json:"impressions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -504,7 +496,7 @@ func (x *IncrementImpressionsResponse) GetImpressions() int64 {
 // Requête pour réinitialiser le compteur d'impressions
 type ResetImpressionsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	AdId          string                 `protobuf:"bytes,1,opt,name=ad_id,json=adId,proto3" json:"ad_id,omitempty"` // ID de la publicité (UUID)
+	AdId          string                 `protobuf:"bytes,1,opt,name=ad_id,json=adId,proto3" json:"ad_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -549,7 +541,7 @@ func (x *ResetImpressionsRequest) GetAdId() string {
 // Réponse pour la réinitialisation d'impressions
 type ResetImpressionsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Impressions   int64                  `protobuf:"varint,1,opt,name=impressions,proto3" json:"impressions,omitempty"` // Ancien nombre d'impressions avant réinitialisation
+	Impressions   int64                  `protobuf:"varint,1,opt,name=impressions,proto3" json:"impressions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -631,7 +623,7 @@ func (*DeleteExpiredRequest) Descriptor() ([]byte, []int) {
 // Réponse pour la suppression des annonces expirées
 type DeleteExpiredResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	DeletedCount  int64                  `protobuf:"varint,1,opt,name=deleted_count,json=deletedCount,proto3" json:"deleted_count,omitempty"` // Nombre d'annonces supprimées
+	DeletedCount  int64                  `protobuf:"varint,1,opt,name=deleted_count,json=deletedCount,proto3" json:"deleted_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -676,9 +668,9 @@ func (x *DeleteExpiredResponse) GetDeletedCount() int64 {
 // Requête pour lister les annonces
 type ListAdsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Filter        map[string]string      `protobuf:"bytes,1,rep,name=filter,proto3" json:"filter,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Critères de filtrage
-	Offset        int64                  `protobuf:"varint,2,opt,name=offset,proto3" json:"offset,omitempty"`                                                                          // Décalage pour la pagination
-	Limit         int64                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`                                                                            // Nombre maximum d'annonces à retourner
+	Filter        map[string]string      `protobuf:"bytes,1,rep,name=filter,proto3" json:"filter,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Offset        int64                  `protobuf:"varint,2,opt,name=offset,proto3" json:"offset,omitempty"`
+	Limit         int64                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -737,7 +729,7 @@ func (x *ListAdsRequest) GetLimit() int64 {
 // Réponse pour la liste des annonces
 type ListAdsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Ads           []*AdResponse          `protobuf:"bytes,1,rep,name=ads,proto3" json:"ads,omitempty"` // Liste des annonces
+	Ads           []*AdResponse          `protobuf:"bytes,1,rep,name=ads,proto3" json:"ads,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -783,13 +775,12 @@ var File_ad_service_proto protoreflect.FileDescriptor
 
 const file_ad_service_proto_rawDesc = "" +
 	"\n" +
-	"\x10ad_service.proto\x12\x05ad.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x96\x01\n" +
+	"\x10ad_service.proto\x12\x05ad.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x84\x01\n" +
 	"\x0fCreateAdRequest\x12\x14\n" +
 	"\x05title\x18\x01 \x01(\tR\x05title\x12 \n" +
-	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x10\n" +
-	"\x03url\x18\x03 \x01(\tR\x03url\x129\n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x129\n" +
 	"\n" +
-	"expires_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\xc3\x01\n" +
+	"expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\xc3\x01\n" +
 	"\n" +
 	"AdResponse\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +

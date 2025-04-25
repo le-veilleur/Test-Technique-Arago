@@ -2,6 +2,7 @@ package main
 
 import (
 	"adserver/generated/ad_service"
+	"adserver/generated/impression_service"
 	"adserver/internal/adapters/grpc/handler"
 	"adserver/internal/adapters/mongodb"
 	"adserver/internal/application"
@@ -19,6 +20,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // loadEnv charge les variables d'environnement depuis le fichier .env
@@ -75,6 +77,16 @@ func main() {
 	grpcServer := grpc.NewServer()
 	log.Printf("gRPC server instance created")
 
+	// Création du client gRPC pour le service d'impression
+	impressionConn, err := grpc.NewClient("impression_tracker:50052", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("Failed to connect to impression service: %v", err)
+	}
+	defer impressionConn.Close()
+
+	impressionClient := impression_service.NewImpressionServiceClient(impressionConn)
+	log.Printf("Impression service client created successfully")
+
 	// Configuration de la connexion MongoDB avec un timeout de 10 secondes
 	log.Printf("Establishing connection to MongoDB at %s...", mongoURI)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -115,8 +127,22 @@ func main() {
 	log.Printf("Ad service initialized")
 
 	// Enregistrement du handler gRPC pour le service d'annonces
-	ad_service.RegisterAdServiceServer(grpcServer, handler.NewAdHandler(adService))
+	ad_service.RegisterAdServiceServer(grpcServer, handler.NewAdHandler(adService, impressionClient))
 	log.Printf("Ad service handler registered with gRPC server")
+
+	// Tâche planifiée pour nettoyer les publicités expirées
+	go func() {
+		ticker := time.NewTicker(1 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			count, err := adService.DeleteExpired(context.Background())
+			if err != nil {
+				log.Printf("[CleanupExpired cron] error: %v", err)
+			} else {
+				log.Printf("[CleanupExpired cron] done, deleted %d ads", count)
+			}
+		}
+	}()
 
 	// Configuration de la gestion des signaux pour un arrêt propre
 	stop := make(chan os.Signal, 1)

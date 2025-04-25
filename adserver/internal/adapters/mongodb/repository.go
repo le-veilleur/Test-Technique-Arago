@@ -151,3 +151,17 @@ func (r *mongoRepository) List(ctx context.Context, filter map[string]interface{
 	log.Printf("[MongoRepository.List] completed in %v returned=%d", time.Since(start), len(ads))
 	return ads, nil
 }
+
+// GetImpressions récupère le nombre d'impressions d'une annonce
+func (r *mongoRepository) GetImpressions(ctx context.Context, id uuid.UUID) (int64, error) {
+	start := time.Now()
+	log.Printf("[MongoRepository.GetImpressions] start id=%s", id)
+	var ad domain.Pub
+	err := r.collection.FindOne(ctx, bson.M{"_id": id}).Decode(&ad)
+	if err != nil {
+		log.Printf("[MongoRepository.GetImpressions] error: %v", err)
+		return 0, err
+	}
+	log.Printf("[MongoRepository.GetImpressions] completed in %v id=%s impressions=%d", time.Since(start), id, ad.Impressions)
+	return ad.Impressions, nil
+}
