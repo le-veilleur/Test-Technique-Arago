@@ -1,81 +1,61 @@
 syntax = "proto3";
 
-// Espace de noms pour les messages et services
 package ad.v1;
 
-// Génération Go
 option go_package = "generated/ad_service";
 
 import "google/protobuf/timestamp.proto";
 
-// ---------- Messages du service de gestion des publicités ----------
-
-// Requête pour créer une nouvelle publicité
 message CreateAdRequest {
-    string title = 1;                         
-    string description = 2;                  
-    google.protobuf.Timestamp expires_at = 3; 
+    string title = 1;
+    string description = 2;
+    google.protobuf.Timestamp expires_at = 3;
 }
 
-// Réponse contenant les détails d'une publicité
 message AdResponse {
-    string id = 1;                             
-    string title = 2;                          
-    string description = 3;                    
-    string url = 4;                            
-    google.protobuf.Timestamp expires_at = 5;  
-    int64 impressions = 6;                     
+    string id = 1;
+    string title = 2;
+    string description = 3;
+    string url = 4;
+    google.protobuf.Timestamp expires_at = 5;
+    int64 impressions = 6;
 }
 
-// Requête pour récupérer une publicité par son ID
 message GetAdRequest {
-    string id = 1;   
-}                         
-// Requête pour diffuser une publicité
+    string id = 1;
+}
+
 message ServeAdRequest {
-    string id = 1;                            
+    string id = 1;
 }
 
-// Réponse de diffusion : URL avec tracking + compteur d'impressions
 message ServeAdResponse {
-    string url = 1;                            
-    int64 impressions = 2;                     
+    string url = 1;
+    int64 impressions = 2;
 }
 
-// Requête pour obtenir le nombre d'impressions d'une publicité
 message GetImpressionCountRequest {
-    string ad_id = 1;                          
+    string ad_id = 1;
 }
 
-// Réponse pour le compteur d'impressions
 message GetImpressionCountResponse {
-    int64 impressions = 1;                     
+    int64 impressions = 1;
 }
 
-// Requête pour incrémenter le compteur d'impressions
 message IncrementImpressionsRequest {
-    string ad_id = 1;                          
+    string ad_id = 1;
 }
 
-// Réponse pour l'incrémentation d'impressions
 message IncrementImpressionsResponse {
-    int64 impressions = 1;                     
+    int64 impressions = 1;
 }
 
+message DeleteExpiredRequest {}
 
-// Requête pour supprimer les annonces expirées
-message DeleteExpiredRequest {
-    // Vide car aucune donnée n'est nécessaire
-}
-
-// Réponse pour la suppression des annonces expirées
 message DeleteExpiredResponse {
-    int64 deleted_count = 1;                   
+    int64 deleted_count = 1;
 }
 
-// ---------- Services ----------
-
-// Service principal de gestion des publicités
 service AdService {
     rpc CreateAd(CreateAdRequest) returns (AdResponse);
     rpc GetAd(GetAdRequest) returns (AdResponse);

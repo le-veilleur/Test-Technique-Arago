@@ -41,7 +41,7 @@ services:
       - impression_tracker-network
     restart: unless-stopped
   dragonfly:
-    image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
+    image: docker.dragonflydb.io/dragonflydb/dragonfly
     ports:
       - "6379:6379"
     volumes:

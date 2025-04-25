@@ -1,261 +1,229 @@
-# Test Technique Arago - Microservices d'Ad Server et Impression Tracker
+# Test Technique Arago - Système de Publicités
 
-Ce projet comprend deux microservices :
-- **Ad Server** : Service de gestion et de diffusion de publicités
-- **Impression Tracker** : Service de suivi des impressions publicitaires
-
-## Prérequis
-
-- Docker et Docker Compose
-- Go 1.23 ou supérieur
-- Protoc (protobuf compiler)
+Ce projet implémente un système de gestion de publicités avec suivi des impressions, utilisant une architecture microservices basée sur gRPC et suivant les principes de l'architecture hexagonale.
 
 ## Architecture
 
-```
-.
-├── adserver/                  # Service de gestion des publicités
-│   ├── cmd/                   # Point d'entrée du service
-│   ├── internal/              # Code interne du service
-│   ├── proto/                 # Définitions gRPC
-│   └── docker/                # Configuration Docker
-├── impression-tracker/        # Service de suivi des impressions
-│   ├── cmd/                   # Point d'entrée du service
-│   ├── internal/              # Code interne du service
-│   ├── proto/                 # Définitions gRPC
-│   └── docker/                # Configuration Docker
-└── README.md                  # Documentation
-```
+Le système est composé de deux microservices principaux, chacun suivant une architecture hexagonale :
 
-## Démarrage des services
+1. **Ad Server** (`adserver/`)
+   - **Domaine** : Gestion des publicités
+   - **Ports primaires** : API gRPC
+   - **Ports secondaires** : MongoDB, Impression Tracker
+   - **Adaptateurs** : gRPC, MongoDB, Impression Tracker
 
-1. Créer le réseau Docker pour la communication entre les services :
+2. **Impression Tracker** (`impression-tracker/`)
+   - **Domaine** : Suivi des impressions
+   - **Ports primaires** : API gRPC
+   - **Ports secondaires** : MongoDB
+   - **Adaptateurs** : gRPC, MongoDB
+
+## Fonctionnalités
+
+### Ad Server
+- Création de publicités avec titre, description et date d'expiration
+- Génération automatique d'URLs uniques pour chaque publicité
+- Nettoyage automatique des publicités expirées
+- Interface gRPC pour la gestion des publicités
+- Communication synchrone avec le service d'impressions pour incrémenter le compteur
+
+### Impression Tracker
+- Suivi des impressions publicitaires
+- Stockage des données d'impression avec horodatage
+- API gRPC pour la notification des impressions
+- Statistiques d'impressions par publicité
+
+## Prérequis
+
+- Go 1.21 ou supérieur
+- Docker et Docker Compose
+- grpcurl (pour tester les APIs)
+- protoc (protobuf compiler)
+
+## Installation
+
+1. Cloner le repository :
 ```bash
-docker network create microservices-network
+git clone https://github.com/votre-username/test-technique-arago.git
+cd test-technique-arago
 ```
 
-2. Démarrer l'Ad Server :
+2. Construire les images Docker :
 ```bash
-cd adserver/docker
-docker-compose up --build
+docker-compose build
 ```
 
-3. Démarrer l'Impression Tracker :
+3. Démarrer les services :
 ```bash
-cd impression-tracker/docker
-docker-compose up --build
-```
-
-Les services seront accessibles aux adresses suivantes :
-- Ad Server : `localhost:50051`
-- Impression Tracker : `localhost:50052`
-- MongoDB Ad Server : `localhost:27017`
-- MongoDB Impression Tracker : `localhost:27018`
-- Mongo Express Ad Server : `localhost:8081`
-- Mongo Express Impression Tracker : `localhost:8082`
-- Dragonfly (cache) : `localhost:6379`
-
-## Définitions gRPC
-
-### Ad Server Service
-
-```protobuf
-service AdService {
-  // Servir une publicité
-  rpc ServeAd(ServeAdRequest) returns (ServeAdResponse) {}
-  
-  // Supprimer les publicités expirées
-  rpc DeleteExpired(DeleteExpiredRequest) returns (DeleteExpiredResponse) {}
-}
-
-message ServeAdRequest {
-  string ad_id = 1;
-}
-
-message ServeAdResponse {
-  string ad_id = 1;
-  string title = 2;
-  string content = 3;
-  int64 impressions = 4;
-}
-```
-
-### Impression Tracker Service
-
-```protobuf
-service ImpressionService {
-  // Enregistrer une nouvelle impression
-  rpc TrackImpression(TrackImpressionRequest) returns (TrackImpressionResponse) {}
-  
-  // Obtenir le nombre d'impressions pour une publicité
-  rpc GetImpressionCount(GetImpressionCountRequest) returns (GetImpressionCountResponse) {}
-}
-
-message TrackImpressionRequest {
-  string ad_id = 1;
-  string impression_id = 2;
-}
-
-message TrackImpressionResponse {
-  bool success = 1;
-}
-
-message GetImpressionCountRequest {
-  string ad_id = 1;
-}
-
-message GetImpressionCountResponse {
-  int64 count = 1;
-}
-```
-
-## Tester les services
-
-### Prérequis pour tester
-
-1. Installer grpcurl :
-```bash
-go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
-```
-
-2. Installer les outils de développement gRPC :
-```bash
-go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-```
-
-### Tester l'Ad Server
-
-1. Servir une publicité :
-```bash
-grpcurl -plaintext -d '{"ad_id": "11adbe56-2c75-4d34-a361-8e442daf0e60"}' localhost:50051 ad.AdService/ServeAd
-```
-
-2. Supprimer les publicités expirées :
-```bash
-grpcurl -plaintext localhost:50051 ad.AdService/DeleteExpired
-```
-
-### Tester l'Impression Tracker
-
-1. Enregistrer une impression :
-```bash
-grpcurl -plaintext -d '{"ad_id": "11adbe56-2c75-4d34-a361-8e442daf0e60", "impression_id": "0f1c87f8-d11f-4e0e-bbb9-67f8ce4f7361"}' localhost:50052 impression.ImpressionService/TrackImpression
-```
-
-2. Obtenir le nombre d'impressions :
-```bash
-grpcurl -plaintext -d '{"ad_id": "11adbe56-2c75-4d34-a361-8e442daf0e60"}' localhost:50052 impression.ImpressionService/GetImpressionCount
-```
-
-### Liste des services disponibles
-
-Pour voir tous les services et méthodes disponibles :
-
-```bash
-# Pour l'Ad Server
-grpcurl -plaintext localhost:50051 list
-
-# Pour l'Impression Tracker
-grpcurl -plaintext localhost:50052 list
-```
-
-### Description des services
-
-Pour voir la description détaillée d'un service :
-
-```bash
-# Pour l'Ad Server
-grpcurl -plaintext localhost:50051 describe ad.AdService
-
-# Pour l'Impression Tracker
-grpcurl -plaintext localhost:50052 describe impression.ImpressionService
-```
-
-## Exemple d'utilisation
-
-### Créer une publicité
-
-```bash
-curl -X POST http://localhost:50051/v1/ads \
-  -H "Content-Type: application/json" \
-  -d '{
-    "title": "Publicité Test",
-    "content": "Contenu de la publicité",
-    "expires_at": "2025-12-31T23:59:59Z"
-  }'
-```
-
-### Servir une publicité
-
-```bash
-curl -X GET http://localhost:50051/v1/ads/serve/{ad_id}
-```
-
-### Obtenir le nombre d'impressions
-
-```bash
-curl -X GET http://localhost:50052/v1/impressions/count/{ad_id}
+docker-compose up -d
 ```
 
 ## Configuration
 
-Les services peuvent être configurés via des variables d'environnement :
+Les services sont configurables via des variables d'environnement dans le fichier `.env` :
 
 ### Ad Server
-
-- `GRPC_HOST` : Hôte du serveur gRPC (défaut: 0.0.0.0)
-- `GRPC_PORT` : Port du serveur gRPC (défaut: 50051)
-- `MONGODB_URI` : URI de connexion MongoDB (défaut: mongodb://mongodb:27017)
-- `MONGODB_DATABASE` : Nom de la base de données (défaut: adserver)
-- `SERVICE_NAME` : Nom du service (défaut: adserver)
-- `ENVIRONMENT` : Environnement d'exécution (défaut: development)
+```env
+GRPC_HOST=0.0.0.0
+GRPC_PORT=50051
+MONGODB_URI=mongodb://mongodb:27017
+MONGODB_DATABASE=adserver
+IMPRESSION_GRPC_ADDR=impression-tracker:50052
+ME_CONFIG_BASICAUTH_USERNAME=admin
+ME_CONFIG_BASICAUTH_PASSWORD=admin123
+```
 
 ### Impression Tracker
-
-- `GRPC_ADDR` : Adresse du serveur gRPC (défaut: :50052)
-- `MONGO_URI` : URI de connexion MongoDB (défaut: mongodb://mongodb:27017)
-- `MONGO_DB` : Nom de la base de données (défaut: impression_tracker)
-- `MONGO_COLLECTION` : Nom de la collection (défaut: impressions)
-- `DRAGONFLY_ADDR` : Adresse du serveur Dragonfly (défaut: localhost:6379)
-- `SYNC_INTERVAL` : Intervalle de synchronisation (défaut: 1m)
-
-## Architecture technique
-
-- **Ad Server** :
-  - Stockage persistant : MongoDB
-  - API : gRPC
-  - Langage : Go
-
-- **Impression Tracker** :
-  - Cache : Dragonfly (compatible Redis)
-  - Stockage persistant : MongoDB
-  - API : gRPC
-  - Langage : Go
-
-## Sécurité
-
-- Les services MongoDB sont accessibles uniquement via le réseau Docker
-- Les interfaces d'administration MongoDB (Mongo Express) sont protégées par authentification
-- La communication entre les services se fait via gRPC sur le réseau privé Docker
-
-## Monitoring
-
-Les services génèrent des logs détaillés qui peuvent être consultés via :
-```bash
-docker logs adserver
-docker logs impression_tracker_app
+```env
+GRPC_HOST=0.0.0.0
+GRPC_PORT=50052
+MONGODB_URI=mongodb://mongodb:27017
+MONGODB_DATABASE=impression_tracker
 ```
 
-## Maintenance
+## Définitions des Services gRPC
 
-Pour arrêter les services :
-```bash
-cd adserver/docker && docker-compose down
-cd impression-tracker/docker && docker-compose down
+### Ad Service (`adserver/proto/ad_service.proto`)
+```protobuf
+syntax = "proto3";
+package ad.v1;
+option go_package = "generated/ad_service";
+import "google/protobuf/timestamp.proto";
+
+service AdService {
+  rpc CreateAd(CreateAdRequest) returns (AdResponse);
+  rpc GetAd(GetAdRequest) returns (AdResponse);
+  rpc ServeAd(ServeAdRequest) returns (ServeAdResponse);
+  rpc GetImpressionCount(GetImpressionCountRequest) returns (GetImpressionCountResponse);
+  rpc IncrementImpressions(IncrementImpressionsRequest) returns (IncrementImpressionsResponse);
+  rpc DeleteExpired(DeleteExpiredRequest) returns (DeleteExpiredResponse);
+}
+
+message CreateAdRequest {
+  string title = 1;
+  string description = 2;
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+message AdResponse {
+  string id = 1;
+  string title = 2;
+  string description = 3;
+  string url = 4;
+  google.protobuf.Timestamp expires_at = 5;
+  int64 impressions = 6;
+}
+
+message ServeAdRequest { string id = 1; }
+message ServeAdResponse { string url = 1; int64 impressions = 2; }
+message GetImpressionCountRequest { string ad_id = 1; }
+message GetImpressionCountResponse { int64 impressions = 1; }
+message IncrementImpressionsRequest { string ad_id = 1; }
+message IncrementImpressionsResponse { int64 impressions = 1; }
+message DeleteExpiredRequest {}
+message DeleteExpiredResponse { int64 deleted_count = 1; }
 ```
 
-Pour nettoyer les données :
+### Impression Service (`impression-tracker/proto/impression_service.proto`)
+```protobuf
+syntax = "proto3";
+package impression.v1;
+option go_package = "generated/impression_service";
+
+service ImpressionService {
+  rpc Track(TrackRequest) returns (TrackResponse);
+  rpc GetCount(GetCountRequest) returns (GetCountResponse);
+}
+
+message TrackRequest { string ad_id = 1; }
+message TrackResponse {}
+message GetCountRequest { string ad_id = 1; }
+message GetCountResponse { int64 count = 1; }
+```
+
+## Utilisation avec grpcurl
+
+### 1. Création d'une publicité
 ```bash
-docker volume rm adserver-mongodb-data impression_tracker-mongodb-data impression_tracker-dragonfly-data
-``` 
+grpcurl -plaintext \
+  -d '{
+    "title": "Ma publicité",
+    "description": "Description de la publicité",
+    "expiresAt": "2025-11-01T00:00:00Z"
+  }' \
+  localhost:50051 \
+  ad.v1.AdService/CreateAd
+```
+**Réponse** :
+```json
+{
+  "id": "94ae2f4f-e619-44df-aba5-58d083a44d2d",
+  "title": "Ma publicité",
+  "description": "Description de la publicité",
+  "url": "https://localhost:8080/ads/94ae2f4f-e619-44df-aba5-58d083a44d2d",
+  "expiresAt": "2025-11-01T00:00:00Z",
+  "impressions": 0
+}
+```
+
+### 2. Diffuser la publicité
+```bash
+grpcurl -plaintext \
+  -d '{"id": "497119be-a147-4c5c-a7b4-8ede5a47925c"}' \
+  localhost:50051 \
+  ad.v1.AdService/ServeAd
+```
+**Réponse** :
+```json
+{
+  "url": "https://localhost:8080/ads/497119be-a147-4c5c-a7b4-8ede5a47925c?impression_id=...",
+  "impressions": 1
+}
+```
+
+### 3. Obtenir le nombre d'impressions
+```bash
+grpcurl -plaintext \
+  -d '{"adId": "497119be-a147-4c5c-a7b4-8ede5a47925c"}' \
+  localhost:50052 \
+  impression.v1.ImpressionService/GetCount
+```
+**Réponse** :
+```json
+{ "count": 1 }
+```
+
+## Structure du Projet
+
+```
+.
+├── adserver/
+│   ├── cmd/
+│   ├── internal/
+│   └── proto/
+├── impression-tracker/
+│   ├── cmd/
+│   ├── internal/
+│   └── proto/
+├── docker-compose.yml
+└── README.md
+```
+
+## Développement
+
+1. Générer les fichiers gRPC :
+```bash
+protoc --go_out=. --go-grpc_out=. --proto_path=proto proto/ad_service.proto
+protoc --go_out=. --go-grpc_out=. --proto_path=proto proto/impression_service.proto
+```
+
+2. Lancer les services :
+```bash
+go run adserver/cmd/main.go
+go run impression-tracker/cmd/main.go
+```
+
+## Licence
+
+TEST TECHNIQUE
+

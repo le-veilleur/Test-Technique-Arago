@@ -21,11 +21,11 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/reflection"
 )
 
 // loadEnv charge les variables d'environnement depuis le fichier .env
 func loadEnv() {
-	// Dans le conteneur Docker, le .env est monté à /app/.env
 	if err := godotenv.Load("/app/.env"); err != nil {
 		log.Printf("Warning: .env file not found or error loading it: %v", err)
 	} else {
@@ -43,20 +43,15 @@ func getEnvOrDefault(key, defaultValue string) string {
 	return defaultValue
 }
 
-// main est le point d'entrée de l'application.
-// Il configure et démarre le serveur gRPC avec MongoDB comme base de données.
 func main() {
 	startTime := time.Now()
 	log.Printf("Starting Ad Server application...")
 
-	// Affichage d'informations système
 	log.Printf("System info: Go version=%s, OS=%s, Arch=%s, CPUs=%d",
 		runtime.Version(), runtime.GOOS, runtime.GOARCH, runtime.NumCPU())
 
-	// Chargement des variables d'environnement
 	loadEnv()
 
-	// Récupération des variables d'environnement avec valeurs par défaut
 	grpcHost := getEnvOrDefault("GRPC_HOST", "0.0.0.0")
 	grpcPort := getEnvOrDefault("GRPC_PORT", "50051")
 	mongoURI := getEnvOrDefault("MONGODB_URI", "mongodb://mongodb:27017")
@@ -64,111 +59,83 @@ func main() {
 	serviceName := getEnvOrDefault("SERVICE_NAME", "adserver")
 	environment := getEnvOrDefault("ENVIRONMENT", "development")
 
-	// Configuration du serveur gRPC
 	address := fmt.Sprintf("%s:%s", grpcHost, grpcPort)
-	log.Printf("Attempting to listen on %s...", address)
+	log.Printf("Listening on %s...", address)
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
-	log.Printf("TCP listener established successfully on %s", address)
 
-	// Création d'une nouvelle instance du serveur gRPC
 	grpcServer := grpc.NewServer()
-	log.Printf("gRPC server instance created")
+	// Activer la réflexion pour grpcurl
+	reflection.Register(grpcServer)
 
-	// Création du client gRPC pour le service d'impression
-	impressionConn, err := grpc.NewClient("impression_tracker:50052", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	// Connexion gRPC au microservice impression-tracker
+	imprAddr := getEnvOrDefault("IMPRESSION_GRPC_ADDR", "impression-tracker:50052")
+	impressionConn, err := grpc.NewClient(imprAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Fatalf("Failed to connect to impression service: %v", err)
+		log.Fatalf("Failed to connect to impression-tracker %s: %v", imprAddr, err)
 	}
 	defer impressionConn.Close()
 
 	impressionClient := impression_service.NewImpressionServiceClient(impressionConn)
-	log.Printf("Impression service client created successfully")
+	log.Printf("Connected to ImpressionService at %s", imprAddr)
 
-	// Configuration de la connexion MongoDB avec un timeout de 10 secondes
-	log.Printf("Establishing connection to MongoDB at %s...", mongoURI)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	// Connexion à MongoDB
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoURI))
+	// Connexion MongoDB
+	log.Printf("Connecting to MongoDB at %s...", mongoURI)
+	mongoCtx, mongoCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer mongoCancel()
+	client, err := mongo.Connect(mongoCtx, options.Client().ApplyURI(mongoURI))
 	if err != nil {
 		log.Fatalf("Failed to connect to MongoDB: %v", err)
 	}
-
-	// Test de la connexion MongoDB
 	pingCtx, pingCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer pingCancel()
 	if err := client.Ping(pingCtx, nil); err != nil {
 		log.Fatalf("Failed to ping MongoDB: %v", err)
 	}
-	log.Printf("Connected successfully to MongoDB at %s, database: %s", mongoURI, mongoDatabase)
-
-	// Déconnexion propre de MongoDB à la fin du programme
 	defer func() {
-		log.Printf("Closing MongoDB connection...")
 		disconnectCtx, disconnectCancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer disconnectCancel()
-		if err = client.Disconnect(disconnectCtx); err != nil {
-			log.Printf("Error when disconnecting from MongoDB: %v", err)
-		} else {
-			log.Printf("MongoDB connection closed successfully")
+		if err := client.Disconnect(disconnectCtx); err != nil {
+			log.Printf("Error disconnecting MongoDB: %v", err)
 		}
 	}()
 
-	// Initialisation du repository MongoDB
 	repo := mongodb.NewMongoRepository(client.Database(mongoDatabase))
-	log.Printf("MongoDB repository initialized")
-
-	// Création du service d'annonces avec le repository MongoDB
 	adService := application.NewAdService(repo)
-	log.Printf("Ad service initialized")
 
-	// Enregistrement du handler gRPC pour le service d'annonces
 	ad_service.RegisterAdServiceServer(grpcServer, handler.NewAdHandler(adService, impressionClient))
-	log.Printf("Ad service handler registered with gRPC server")
+	log.Printf("AdService handler registered")
 
-	// Tâche planifiée pour nettoyer les publicités expirées
+	// Nettoyage des publicités expirées
 	go func() {
 		ticker := time.NewTicker(1 * time.Minute)
 		defer ticker.Stop()
 		for range ticker.C {
 			count, err := adService.DeleteExpired(context.Background())
 			if err != nil {
-				log.Printf("[CleanupExpired cron] error: %v", err)
+				log.Printf("[CleanupExpired] error: %v", err)
 			} else {
-				log.Printf("[CleanupExpired cron] done, deleted %d ads", count)
+				log.Printf("[CleanupExpired] deleted %d ads", count)
 			}
 		}
 	}()
 
-	// Configuration de la gestion des signaux pour un arrêt propre
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-	log.Printf("Signal handling configured (SIGINT, SIGTERM)")
-
-	// Calcul du temps de démarrage
-	startupDuration := time.Since(startTime)
-
-	// Démarrage du serveur gRPC dans une goroutine séparée
+	// Démarrer le serveur gRPC
 	go func() {
-		log.Printf("Starting %s gRPC server on %s in %s environment (startup time: %v)",
-			serviceName, address, environment, startupDuration)
+		log.Printf("%s gRPC server running on %s (%s)",
+			serviceName, address, environment)
 		if err := grpcServer.Serve(lis); err != nil {
 			log.Fatalf("Failed to serve: %v", err)
 		}
 	}()
 
-	// Attente d'un signal d'arrêt (Ctrl+C ou SIGTERM)
-	sig := <-stop
-	log.Printf("Received signal: %v", sig)
-
-	// Arrêt propre du serveur gRPC
-	log.Println("Initiating graceful shutdown of the server...")
-	serverStopTime := time.Now()
+	// Gestion du shutdown
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+	<-stop
+	log.Println("Shutting down gRPC server...")
 	grpcServer.GracefulStop()
-	log.Printf("Server gracefully stopped in %v", time.Since(serverStopTime))
-	log.Printf("Total uptime: %v", time.Since(startTime))
+	log.Printf("Server stopped. Total uptime: %v", time.Since(startTime))
 }
